@@ -57,4 +57,14 @@ public class Ship {
   public void setSunk(boolean sunk) {
     this.sunk = sunk;
   }
+
+  public Position getPosition() {
+    for (Coord c : this.coordinates) {
+      if (this.coordinates.contains(new Coord(c.getX() + 1, c.getY())) ||
+          this.coordinates.contains(new Coord(c.getX() - 1, c.getY()))) {
+        return Position.HORIZONTAL;
+      }
+    }
+    return Position.VERTICAL;
+  }
 }
