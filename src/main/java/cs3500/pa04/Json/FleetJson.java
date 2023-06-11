@@ -4,7 +4,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import cs3500.pa03.Model.Ship;
 import java.util.List;
 
+/**
+ * Represents a fleet in JSON format.
+ */
 public record FleetJson(
-  @JsonProperty("ships") List<ShipJson> ships) {
+  @JsonProperty("fleet") List<ShipJson> ships) {
   }
 

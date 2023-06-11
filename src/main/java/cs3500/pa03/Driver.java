@@ -20,21 +20,23 @@ public class Driver {
    * @param args - no command line args required
    */
   public static void main(String[] args) throws IOException {
-    View view = new View();
-    HumanPlayer humanPlayer = new HumanPlayer("Your", view);
-    AIPlayer aiPlayer = new AIPlayer("Opponent", view);
-    Game game = new Game(view, humanPlayer, aiPlayer);
-    game.start();
-
-    String host = args[0];
-    int port = Integer.parseInt(args[1]);
-    Driver.runClient(host, port);
+    if (args.length == 0) {
+      View view = new View();
+      HumanPlayer humanPlayer = new HumanPlayer("Your", view);
+      AIPlayer aiPlayer = new AIPlayer("Opponent", view);
+      Game game = new Game(view, humanPlayer, aiPlayer);
+      game.start();
+    } else {
+      String host = args[0];
+      int port = Integer.parseInt(args[1]);
+      Driver.runClient(host, port);
+    }
   }
 
   private static void runClient(String host, int port) {
     try {
       Socket server = new Socket(host, port);
-      Player aiPlayer = new AIPlayer("Opponent", new View());
+      AIPlayer aiPlayer = new AIPlayer("Opponent", new View());
       ProxyDealer proxyDealer = new ProxyDealer(server, aiPlayer);
       proxyDealer.run();
     } catch (IOException e) {

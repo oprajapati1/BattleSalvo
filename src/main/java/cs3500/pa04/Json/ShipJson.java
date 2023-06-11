@@ -4,8 +4,11 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import cs3500.pa03.Model.Coord;
 import cs3500.pa03.Model.Position;
 
+/**
+ * Represents a ship in JSON format.
+ */
 public record ShipJson(
-  @JsonProperty("coord") CoordJson coord,
-  @JsonProperty("length") int length,
-  @JsonProperty("direction") Position position) {
+    @JsonProperty("coord") CoordJson coord,
+    @JsonProperty("length") int length,
+    @JsonProperty("direction") Position position) {
 }

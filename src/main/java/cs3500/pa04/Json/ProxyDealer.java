@@ -3,36 +3,70 @@ package cs3500.pa04.Json;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import cs3500.pa03.Model.AIPlayer;
 import cs3500.pa03.Model.Coord;
 import cs3500.pa03.Model.GameResult;
 import cs3500.pa03.Model.Player;
 import cs3500.pa03.Model.Position;
 import cs3500.pa03.Model.Ship;
 import cs3500.pa03.Model.ShipType;
-
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintStream;
 import java.net.Socket;
+import java.sql.SQLOutput;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * A class representing a proxy dealer that communicates with a server using JSON messages.
+ */
 public class ProxyDealer {
-  Socket server;
-  Player player;
+  private Socket server;
+  private AIPlayer player;
   private final InputStream in;
   private final PrintStream out;
   private final ObjectMapper mapper = new ObjectMapper();
-  private static final JsonNode VOID_RESPONSE = new ObjectMapper().getNodeFactory().textNode("void");
+  private static final JsonNode VOID_RESPONSE =
+      new ObjectMapper().getNodeFactory().textNode("void");
+  private List<Coord> shotsOnUs;
+  private List<Coord> allShots = new ArrayList<>();
 
-  public ProxyDealer(Socket server, Player player) throws IOException {
+  /**
+   * Constructs a ProxyDealer object with the specified server and player.
+   *
+   * @param server the socket representing the server
+   * @param player the player object
+   * @throws IOException if an I/O error occurs when creating the input/output streams
+   */
+  public ProxyDealer(Socket server, AIPlayer player) throws IOException {
     this.server = server;
     this.in = server.getInputStream();
     this.out = new PrintStream(server.getOutputStream());
     this.player = player;
   }
 
+  private void initBoard() {
+    int height = player.playerBoard.height;
+    int width = player.playerBoard.width;
+    char[][] boardData = new char[height][width];
+    for (int i = 0; i < height; i++) {
+      Arrays.fill(boardData[i], '-');
+    }
+    for (Ship ship : player.playerBoard.allShips) {
+      for (Coord coord : ship.getCoordinates()) {
+        boardData[coord.getY()][coord.getX()] = ship.getShipType().getIdentifier();
+      }
+    }
+    player.boardVisual = boardData;
+    player.boardHidden = boardData;
+  }
+
+  /**
+   * Runs the proxy dealer, continuously listening for and handling incoming messages.
+   */
   public void run() {
     try {
       JsonParser parser = this.mapper.getFactory().createParser(this.in);
@@ -46,6 +80,11 @@ public class ProxyDealer {
     }
   }
 
+  /**
+   * Delegates the handling of a message to the appropriate handler method based on its name.
+   *
+   * @param message the incoming message
+   */
   private void delegateMessage(MessageJson message) {
     String name = message.messageName();
     JsonNode arguments = message.arguments();
@@ -58,26 +97,34 @@ public class ProxyDealer {
       handleTakeShots(arguments);
     } else if ("report-damage".equals(name)) {
       handleReportDamage(arguments);
-    }
-    else if ("successful-hits".equals(name)) {
+    } else if ("successful-hits".equals(name)) {
       handleSuccessfulHits(arguments);
     } else if ("end-game".equals(name)) {
       handleEndGame(arguments);
-    }
-    else {
+    } else {
       throw new IllegalStateException("Invalid message name");
     }
   }
 
+  /**
+   * Handles the "join" message by sending a join request to the server.
+   *
+   * @param arguments the arguments of the join message
+   */
   private void handleJoin(JsonNode arguments) {
-    JoinJson args = new JoinJson("yashkumar530", "SINGLE");
+    JoinJson args = new JoinJson("oprajapati1", "SINGLE");
     JsonNode joinArg = JsonUtils.serializeRecord(args);
     MessageJson joinGame = new MessageJson("join", joinArg);
     JsonNode jsonOutput = JsonUtils.serializeRecord(joinGame);
     this.out.println(jsonOutput);
   }
 
-  //TODO: FIX SETUP
+  /**
+   * Handles the "setup" message by setting up the player's
+   * fleet and sending the fleet information to the server.
+   *
+   * @param arguments the arguments of the setup message
+   */
   private void handleSetup(JsonNode arguments) {
     SetUp args = this.mapper.convertValue(arguments, SetUp.class);
 
@@ -86,10 +133,10 @@ public class ProxyDealer {
 
     Map<ShipType, Integer> specifications = args.fleetSpecs();
     List<Ship> fleet = player.setup(height, width, specifications);
-
+    player.playerBoard.allShips.addAll(fleet);
     List<ShipJson> fleetJson = new ArrayList<>();
 
-    for(Ship ship : fleet)  {
+    for (Ship ship : fleet) {
       Coord start = ship.getCoordinates().get(0);
       int shipSize = ship.getCoordinates().size();
       Position position = ship.getPosition();
@@ -103,14 +150,22 @@ public class ProxyDealer {
     JsonNode fleetJsonOutput = JsonUtils.serializeRecord(fleetOutput);
     MessageJson setup = new MessageJson("setup", fleetJsonOutput);
     JsonNode setupOutput = JsonUtils.serializeRecord(setup);
+    System.out.println("setup output:" + setupOutput);
     this.out.println(setupOutput);
+    initBoard();
   }
 
+  /**
+   * Handles the "take-shots" message by requesting shots from
+   * the player and sending the shot information to the server.
+   *
+   * @param arguments the arguments of the take-shots message
+   */
   private void handleTakeShots(JsonNode arguments) {
     List<Coord> shots = player.takeShots();
     List<CoordJson> shotsJson = new ArrayList<>();
 
-    for (Coord c: shots ) {
+    for (Coord c : shots) {
       CoordJson coordJson = new CoordJson(c.getX(), c.getY());
       shotsJson.add(coordJson);
     }
@@ -119,21 +174,29 @@ public class ProxyDealer {
     JsonNode shotOutput = JsonUtils.serializeRecord(volley);
     MessageJson takeShots = new MessageJson("take-shots", shotOutput);
     JsonNode takeShotsOutput = JsonUtils.serializeRecord(takeShots);
+    System.out.println("shot output:" + takeShotsOutput);
     this.out.println(takeShotsOutput);
   }
 
+  /**
+   * Handles the "report-damage" message by processing the
+   * reported shots and sending the results to the server.
+   *
+   * @param arguments the arguments of the report-damage message
+   */
   private void handleReportDamage(JsonNode arguments) {
     VolleyJson givenShots = mapper.convertValue(arguments, VolleyJson.class);
     List<Coord> shots = new ArrayList<>();
 
-    for(CoordJson cj : givenShots.getCoords()) {
+    for (CoordJson cj : givenShots.getCoords()) {
       shots.add(new Coord(cj.getX(), cj.getY()));
+      allShots.add(new Coord(cj.getX(), cj.getY()));
     }
 
-    List<Coord> hits = player.reportDamage(shots);
+    shotsOnUs = player.reportDamage(shots);
 
     List<CoordJson> hitsJson = new ArrayList<>();
-    for(Coord c : hits) {
+    for (Coord c : shotsOnUs) {
       CoordJson coordJson = new CoordJson(c.getX(), c.getY());
       hitsJson.add(coordJson);
     }
@@ -142,22 +205,47 @@ public class ProxyDealer {
 
     MessageJson damageReport = new MessageJson("report-damage", volleyOutput);
     JsonNode damageReportOutput = JsonUtils.serializeRecord(damageReport);
+    System.out.println("damage report output:" + damageReportOutput);
     this.out.println(damageReportOutput);
   }
 
-  //TODO:Successful hits needs to be fixed cuz we completley changed the way the method is supposed to work
+  /**
+   * Handles the "successful-hits" message by processing the successful hits made by the player.
+   *
+   * @param arguments the arguments of the successful-hits message
+   */
   private void handleSuccessfulHits(JsonNode arguments) {
-    List<Coord> shotsThatHitOpponentShips = new ArrayList<>();
-    for (JsonNode shot : arguments.get("shots")) {
-      shotsThatHitOpponentShips.add(new Coord(shot.get("x").asInt(), shot.get("y").asInt()));
+    VolleyJson successHitsVolley = mapper.convertValue(arguments, VolleyJson.class);
+
+    List<Coord> successHits = new ArrayList<>();
+
+    for(CoordJson cj : successHitsVolley.getCoords()) {
+      successHits.add(new Coord(cj.getX(), cj.getY()));
     }
-    player.successfulHits(shotsThatHitOpponentShips);
+
+    player.successfulHits(shotsOnUs);
+    player.updateIsSunk(allShots);
+    JsonNode node = mapper.createObjectNode();
+    MessageJson successHitsMessage = new MessageJson("successful-hits", node);
+    JsonNode successHitsOutput = JsonUtils.serializeRecord(successHitsMessage);
+    this.out.println(successHitsOutput);
   }
 
-  //Is this correct?
+  /**
+   * Handles the "end-game" message by processing the game result
+   * and reason, and sending an acknowledgement to the server.
+   *
+   * @param arguments the arguments of the end-game message
+   */
   private void handleEndGame(JsonNode arguments) {
-    GameResult result = GameResult.valueOf(arguments.get("result").asText());
-    String reason = arguments.get("reason").asText();
+    GameResult result = GameResult.valueOf(
+        mapper.convertValue(arguments.get("result"), String.class));
+    String reason = mapper.convertValue(arguments.get("reason"), String.class);
     player.endGame(result, reason);
+
+    JsonNode node = mapper.createObjectNode();
+    MessageJson messageJson = new MessageJson("end-game", node);
+    JsonNode endGameOutput = JsonUtils.serializeRecord(messageJson);
+    this.out.println(endGameOutput);
   }
 }

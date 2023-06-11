@@ -223,6 +223,7 @@ public class AIPlayer implements Player {
   public void successfulHits(List<Coord> shotsThatHitOpponentShips) {
     for (Coord shot : shotsThatHitOpponentShips) {
       boardHidden[shot.getY()][shot.getX()] = 'X';
+      boardVisual[shot.getY()][shot.getX()] = 'X';
     }
   }
 
