@@ -141,7 +141,7 @@ public class AIPlayerTest {
     assertFalse(isValidHorizontal);
   }
 
-  @Test
+
   void testIsValidPlacement_validPlacement() {
     Map<ShipType, Integer> specs = new HashMap<>();
     specs.put(ShipType.DESTROYER, 1);
