@@ -39,7 +39,7 @@ public class ProxyDealer {
    *
    * @param server the socket representing the server
    * @param player the player object
-   * @throws IOException if an I/O error occurs when creating the input/output streams
+   * @throws IOException if a I/O error occurs when creating the input/output streams
    */
   public ProxyDealer(Socket server, AIPlayer player) throws IOException {
     this.server = server;
