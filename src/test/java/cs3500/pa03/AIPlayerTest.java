@@ -81,6 +81,7 @@ public class AIPlayerTest {
   @Test
   void testSuccessfulHits() {
     aiPlayer.boardHidden = new char[5][5];
+    aiPlayer.boardVisual = new char[5][5];
 
     List<Coord> shotsThatHitOpponentShips = Arrays.asList(new Coord(1, 1),
         new Coord(2, 2));
@@ -141,7 +142,7 @@ public class AIPlayerTest {
     assertFalse(isValidHorizontal);
   }
 
-
+  @Test
   void testIsValidPlacement_validPlacement() {
     Map<ShipType, Integer> specs = new HashMap<>();
     specs.put(ShipType.DESTROYER, 1);
