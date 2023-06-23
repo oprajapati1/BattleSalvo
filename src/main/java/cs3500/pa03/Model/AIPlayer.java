@@ -16,6 +16,7 @@ public class AIPlayer implements Player {
   private final View view;
   public char[][] boardVisual;
   public char[][] boardHidden;
+  public List<Coord> shotsHitOnOpponent;
 
   /**
    * Constructs an AIPlayer with the given name and view.
@@ -27,6 +28,7 @@ public class AIPlayer implements Player {
     this.name = name;
     this.view = view;
     this.playerBoard = new Board();
+    this.shotsHitOnOpponent = new ArrayList<>();
   }
 
   /**
@@ -150,20 +152,59 @@ public class AIPlayer implements Player {
    */
   @Override
   public List<Coord> takeShots() {
-    int shipCount = 0;
     List<Coord> shots = new ArrayList<>();
 
+    // Calculate how many shots the AI can take this turn
+    int shotsAvailable = 0;
     for (Ship ship : playerBoard.allShips) {
       if (!ship.isSunk()) {
-        shipCount++;
+        shotsAvailable++;
       }
     }
-    for (int i = 0; i < shipCount; i++) {
-      int x = new Random().nextInt(playerBoard.width);
-      int y = new Random().nextInt(playerBoard.height);
-      if (playerBoard.allShots.contains(new Coord(x, y))) {
-        i--;
-      } else {
+
+    // If there are hits, enter Target Mode
+    if (!shotsHitOnOpponent.isEmpty()) {
+      Coord lastHit = shotsHitOnOpponent.get(shotsHitOnOpponent.size() - 1);
+      int[][] directions = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}}; // left, right, up, down
+
+      for (int[] direction : directions) {
+        int x = lastHit.getX();
+        int y = lastHit.getY();
+
+        // Try shooting in one direction
+        while (shots.size() < shotsAvailable) {
+          x += direction[0];
+          y += direction[1];
+
+          // Check if the coordinate is within the bounds of the board and not already shot at.
+          if (x >= 0 && y >= 0 && x < playerBoard.width && y < playerBoard.height
+              && !playerBoard.allShots.contains(new Coord(x, y))) {
+            shots.add(new Coord(x, y));
+            playerBoard.allShots.add(new Coord(x, y));
+          } else {
+            break; // reached the edge or already shot here, try another direction
+          }
+        }
+
+        // If all shots have been used, return
+        if (shots.size() == shotsAvailable) {
+          return shots;
+        }
+      }
+    }
+
+    // If there are remaining shots, enter Hunt Mode
+    int maxAttempts = 10000; // a reasonably large number to prevent infinite loop
+    int attempts = 0;
+    while (shots.size() < shotsAvailable && attempts < maxAttempts) {
+      int x, y;
+      do {
+        x = new Random().nextInt(playerBoard.width);
+        y = new Random().nextInt(playerBoard.height);
+        attempts++;
+      } while (playerBoard.allShots.contains(new Coord(x, y)) && attempts < maxAttempts);
+
+      if (attempts < maxAttempts) {
         shots.add(new Coord(x, y));
         playerBoard.allShots.add(new Coord(x, y));
       }

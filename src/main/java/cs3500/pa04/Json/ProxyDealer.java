@@ -112,7 +112,7 @@ public class ProxyDealer {
    * @param arguments the arguments of the join message
    */
   private void handleJoin(JsonNode arguments) {
-    JoinJson args = new JoinJson("oprajapati1", "SINGLE");
+    JoinJson args = new JoinJson("pa04-celticsin9", "MULTI");
     JsonNode joinArg = JsonUtils.serializeRecord(args);
     MessageJson joinGame = new MessageJson("join", joinArg);
     JsonNode jsonOutput = JsonUtils.serializeRecord(joinGame);
@@ -150,7 +150,6 @@ public class ProxyDealer {
     JsonNode fleetJsonOutput = JsonUtils.serializeRecord(fleetOutput);
     MessageJson setup = new MessageJson("setup", fleetJsonOutput);
     JsonNode setupOutput = JsonUtils.serializeRecord(setup);
-    System.out.println("setup output:" + setupOutput);
     this.out.println(setupOutput);
     initBoard();
   }
@@ -174,7 +173,6 @@ public class ProxyDealer {
     JsonNode shotOutput = JsonUtils.serializeRecord(volley);
     MessageJson takeShots = new MessageJson("take-shots", shotOutput);
     JsonNode takeShotsOutput = JsonUtils.serializeRecord(takeShots);
-    System.out.println("shot output:" + takeShotsOutput);
     this.out.println(takeShotsOutput);
   }
 
@@ -205,7 +203,6 @@ public class ProxyDealer {
 
     MessageJson damageReport = new MessageJson("report-damage", volleyOutput);
     JsonNode damageReportOutput = JsonUtils.serializeRecord(damageReport);
-    System.out.println("damage report output:" + damageReportOutput);
     this.out.println(damageReportOutput);
   }
 
@@ -221,6 +218,7 @@ public class ProxyDealer {
 
     for(CoordJson cj : successHitsVolley.getCoords()) {
       successHits.add(new Coord(cj.getX(), cj.getY()));
+      player.shotsHitOnOpponent.add(new Coord(cj.getX(), cj.getY()));
     }
 
     player.successfulHits(shotsOnUs);
@@ -247,5 +245,10 @@ public class ProxyDealer {
     MessageJson messageJson = new MessageJson("end-game", node);
     JsonNode endGameOutput = JsonUtils.serializeRecord(messageJson);
     this.out.println(endGameOutput);
+    try {
+      server.close();
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 }
